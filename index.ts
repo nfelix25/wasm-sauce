@@ -1,20 +1,29 @@
-const fs = require("fs");
+// index.ts
+import { readFile } from "node:fs/promises";
 
-const buffer = fs.readFileSync("./helloWorld.wasm");
-const buffer2 = fs.readFileSync("./minusOne.wasm");
-const buffer3 = fs.readFileSync("./count1s.wasm");
+async function loadModule(path: string) {
+  const bytes = await readFile(path);
+  return WebAssembly.instantiate(bytes);
+}
 
-WebAssembly.instantiate(buffer).then((prog) => {
-  WebAssembly.instantiate(buffer2).then((prog2) => {
-    WebAssembly.instantiate(buffer3).then((prog3) => {
-      console.log(
-        prog3.instance.exports.count1s(
-          prog2.instance.exports.minusOne(prog.instance.exports.helloWorld(12))
-        )
-      );
-    });
+async function run(input = 12) {
+  const [helloWorld, minusOne, count1s] = await Promise.all([
+    loadModule("./helloWorld.wasm"),
+    loadModule("./minusOne.wasm"),
+    loadModule("./count1s.wasm"),
+  ]);
+
+  return count1s.instance.exports.count1s(
+    minusOne.instance.exports.minusOne(
+      helloWorld.instance.exports.helloWorld(input),
+    ),
+  );
+}
+
+const value = Number(process.argv[2] ?? 12);
+run(value)
+  .then((result) => console.log(result))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
   });
-});
-
-// 9 in binary - 0000 0000 0000 0000 0000 0000 0000 1001
-// 2 1s
